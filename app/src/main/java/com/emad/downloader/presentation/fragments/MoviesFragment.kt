@@ -8,8 +8,10 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.emad.downloader.R
 import com.emad.downloader.databinding.FragmentMoviesBinding
+import com.emad.downloader.presentation.adapters.MoviesAdapter
 import com.emad.downloader.presentation.viewmodel.MoviesViewModel
 import com.emad.downloader.utils.Resource
 import com.google.gson.Gson
@@ -20,13 +22,15 @@ import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.lang.reflect.Type
+import javax.inject.Inject
 
 private const val TAG = "MoviesFragment"
 @AndroidEntryPoint
 class MoviesFragment : Fragment() {
     val moviesViewModel: MoviesViewModel by viewModels()
     lateinit var mBinding: FragmentMoviesBinding
-
+    @Inject
+    lateinit var adapter: MoviesAdapter
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         mBinding= FragmentMoviesBinding.inflate(inflater, container, false)
         return mBinding.root
@@ -34,7 +38,13 @@ class MoviesFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        initMoviesRecyclerView()
         observeMovies()
+    }
+    private fun initMoviesRecyclerView() {
+        val layoutManager = LinearLayoutManager(requireContext())
+        mBinding.moviesRecyclerView.layoutManager = layoutManager
+        mBinding.moviesRecyclerView.adapter = adapter
     }
     private fun observeMovies(){
         lifecycleScope.launchWhenStarted {
@@ -44,7 +54,7 @@ class MoviesFragment : Fragment() {
                     is Resource.Error -> { }
                     is Resource.Loading -> {}
                     is Resource.Success -> {
-                        Log.d(TAG, "observeMovies: Success")
+                       adapter.submitList(it.data!!)
                     }
                 }
             }
