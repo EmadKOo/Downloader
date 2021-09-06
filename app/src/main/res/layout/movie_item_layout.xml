@@ -11,6 +11,9 @@
         <variable
             name="isBook"
             type="Boolean" />
+        <variable
+            name="status"
+            type="String" />
     </data>
 
     <com.google.android.material.card.MaterialCardView
@@ -38,14 +41,15 @@
                 app:layout_constraintTop_toTopOf="parent" />
 
             <TextView
+                android:id="@+id/textView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/exo"
+                android:text="@{title}"
                 android:textColor="@color/black"
                 android:textSize="@dimen/_14sdp"
-                android:text="@{title}"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/imageView"
+                app:layout_constraintEnd_toStartOf="@+id/downloadFileImage"
                 app:layout_constraintHorizontal_bias="0.06"
                 app:layout_constraintStart_toEndOf="@+id/itemImage"
                 app:layout_constraintTop_toTopOf="parent"
@@ -53,15 +57,29 @@
                 tools:text="@tools:sample/first_names" />
 
             <ImageView
-                android:id="@+id/imageView"
-                android:layout_width="@dimen/_20sdp"
-                android:layout_height="@dimen/_20sdp"
+                android:id="@+id/downloadFileImage"
+                android:layout_width="@dimen/_35sdp"
+                android:layout_height="@dimen/_35sdp"
                 android:layout_marginEnd="@dimen/_5sdp"
                 android:layout_marginStart="@dimen/_5sdp"
+                android:padding="@dimen/_7sdp"
                 android:src="@drawable/ic_baseline_cloud_download_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/exo"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="@dimen/_12sdp"
+                android:text="@{status}"
+                android:layout_marginEnd="@dimen/_10sdp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/downloadFileImage"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="status" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 </layout>
