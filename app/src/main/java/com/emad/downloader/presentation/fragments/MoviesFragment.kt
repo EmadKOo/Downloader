@@ -27,9 +27,7 @@ import com.emad.downloader.presentation.viewmodel.MoviesViewModel
 import com.emad.downloader.utils.Resource
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collect
-import java.io.File
 import javax.inject.Inject
-
 
 private const val TAG = "MoviesFragment"
 @AndroidEntryPoint
@@ -37,13 +35,15 @@ class MoviesFragment : Fragment(), IMovie {
     val moviesViewModel: MoviesViewModel by viewModels()
     lateinit var mBinding: FragmentMoviesBinding
     lateinit var currentMovie: Movie
+    lateinit var downloadManager: DownloadManager
     @Inject
     lateinit var adapter: MoviesAdapter
+    var downloadMap: HashMap<Long,Movie> = HashMap<Long,Movie>()
     private val onComplete: BroadcastReceiver = object : BroadcastReceiver() {
+        @SuppressLint("Range")
         override fun onReceive(ctxt: Context, intent: Intent) {
             val id: Long = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-            adapter.setMovieStatus(currentMovie, getString(R.string.downloaded))
-            Log.d(TAG, "onReceive: " + id)
+            adapter.setMovieStatus(downloadMap.get(id)!!, getString(R.string.downloaded))
         }
     }
 
@@ -72,8 +72,6 @@ class MoviesFragment : Fragment(), IMovie {
             moviesViewModel.getMovies()
             moviesViewModel.moviesStateFlow.collect{
                 when(it){
-                    is Resource.Error -> { }
-                    is Resource.Loading -> {}
                     is Resource.Success -> {
                        adapter.submitList(it.data!!)
                     }
@@ -84,24 +82,18 @@ class MoviesFragment : Fragment(), IMovie {
 
     @SuppressLint("Range")
     private fun downloadFile(movie: Movie){
-
-        val downloadManager = requireContext().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        downloadManager = requireContext().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val request = DownloadManager.Request(Uri.parse(movie.url))
             .setTitle(movie.name)
             .setDescription(getString(R.string.downloading))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setAllowedOverMetered(true)
-            .setDestinationInExternalFilesDir( requireContext(),
-                Environment.DIRECTORY_DOWNLOADS,
-                "")
+            .setDestinationInExternalFilesDir(requireContext(), Environment.DIRECTORY_DOWNLOADS, "")
             .setAllowedOverRoaming(true)
 
-        val downloadId: Long = downloadManager.enqueue(request)
-        Log.d(TAG, "downloadFile: " + downloadId)
-
+        downloadMap.put(downloadManager.enqueue(request), movie)
         requireActivity().registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
     }
-
     override fun onPause() {
         super.onPause()
         requireActivity().unregisterReceiver(onComplete)
