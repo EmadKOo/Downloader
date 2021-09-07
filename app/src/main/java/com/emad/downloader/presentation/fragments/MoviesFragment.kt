@@ -22,14 +22,17 @@ import com.emad.downloader.R
 import com.emad.downloader.data.pojo.Movie
 import com.emad.downloader.databinding.FragmentMoviesBinding
 import com.emad.downloader.presentation.adapters.MoviesAdapter
+import com.emad.downloader.presentation.extentions.showLongSnackBar
 import com.emad.downloader.presentation.listeners.IMovie
 import com.emad.downloader.presentation.viewmodel.MoviesViewModel
 import com.emad.downloader.utils.Resource
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
 
-private const val TAG = "MoviesFragment"
 @AndroidEntryPoint
 class MoviesFragment : Fragment(), IMovie {
     val moviesViewModel: MoviesViewModel by viewModels()
@@ -38,21 +41,18 @@ class MoviesFragment : Fragment(), IMovie {
     lateinit var downloadManager: DownloadManager
     @Inject
     lateinit var adapter: MoviesAdapter
-    var downloadMap: HashMap<Long,Movie> = HashMap<Long,Movie>()
-    private val onComplete: BroadcastReceiver = object : BroadcastReceiver() {
-        @SuppressLint("Range")
-        override fun onReceive(ctxt: Context, intent: Intent) {
-            val id: Long = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-            adapter.setMovieStatus(downloadMap.get(id)!!, getString(R.string.downloaded))
-        }
-    }
-
+    var downloadMap: HashMap<Long, Movie> = HashMap()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         adapter.setIMovieListener(this)
     }
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        mBinding= FragmentMoviesBinding.inflate(inflater, container, false)
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        mBinding = FragmentMoviesBinding.inflate(inflater, container, false)
         return mBinding.root
     }
 
@@ -61,28 +61,28 @@ class MoviesFragment : Fragment(), IMovie {
         initMoviesRecyclerView()
         observeMovies()
     }
+
     private fun initMoviesRecyclerView() {
         val layoutManager = LinearLayoutManager(requireContext())
         mBinding.moviesRecyclerView.layoutManager = layoutManager
         mBinding.moviesRecyclerView.adapter = adapter
     }
-    private fun observeMovies(){
-        Log.d(TAG, "observeMovies: ")
+
+    private fun observeMovies() {
         lifecycleScope.launchWhenStarted {
             moviesViewModel.getMovies()
-            moviesViewModel.moviesStateFlow.collect{
-                when(it){
+            moviesViewModel.moviesStateFlow.collect {
+                when (it) {
                     is Resource.Success -> {
-                       adapter.submitList(it.data!!)
+                        adapter.submitList(it.data!!)
                     }
                 }
             }
         }
     }
 
-    @SuppressLint("Range")
-    private fun downloadFile(movie: Movie){
-        downloadManager = requireContext().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    private fun downloadFile(movie: Movie) {
+        downloadManager= requireContext().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val request = DownloadManager.Request(Uri.parse(movie.url))
             .setTitle(movie.name)
             .setDescription(getString(R.string.downloading))
@@ -90,18 +90,46 @@ class MoviesFragment : Fragment(), IMovie {
             .setAllowedOverMetered(true)
             .setDestinationInExternalFilesDir(requireContext(), Environment.DIRECTORY_DOWNLOADS, "")
             .setAllowedOverRoaming(true)
-
-        downloadMap.put(downloadManager.enqueue(request), movie)
-        requireActivity().registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
-    }
-    override fun onPause() {
-        super.onPause()
-        requireActivity().unregisterReceiver(onComplete)
+        val downloadID = downloadManager.enqueue(request)
+        downloadMap.put(downloadID, movie)
+        observeDownloadStatus(downloadID)
     }
 
+    @SuppressLint("Range")
+    private fun observeDownloadStatus(downloadID: Long){
+        var isDownloading = true
+        var progress = 0f
+        GlobalScope.launch(IO) {
+            while (isDownloading) {
+                try{
+                    val query = DownloadManager.Query()
+                    query.setFilterById(downloadID)
+                    val cursor = downloadManager.query(query)
+                    cursor.moveToFirst()
+                    val bytes_Downloaded = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                    val bytes_total = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                    progress = bytes_Downloaded.toFloat() / bytes_total.toFloat() * 100
+                    withContext(Main) {
+                        delay(2000)
+                        if (bytes_total>0)
+                            adapter.setMovieStatus(downloadMap.get(downloadID)!!, getString(R.string.downloading) + " " + progress.toInt()+" %", true)
+                        else
+                            adapter.setMovieStatus(downloadMap.get(downloadID)!!, getString(R.string.downloading), true)
+
+                    }
+                    if (cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)) == DownloadManager.STATUS_SUCCESSFUL) {
+                        withContext(Main) {
+                            adapter.setMovieStatus(downloadMap.get(downloadID)!!, getString(R.string.downloaded) ,false)
+                        }
+                        isDownloading = false
+                    }
+                }catch (ex: Exception){
+                }
+            }
+        }
+    }
     override fun selectedMovie(movie: Movie) {
-        currentMovie= movie
+        currentMovie = movie
         downloadFile(movie)
-        adapter.setMovieStatus(movie, getString(R.string.downloading))
     }
 }

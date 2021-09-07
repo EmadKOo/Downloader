@@ -11,5 +11,6 @@ data class Movie(
     val name: String,
     val type: String,
     val url: String,
-    var status: String
+    var status: String,
+    var isDownloading: Boolean= false
 ): Parcelable

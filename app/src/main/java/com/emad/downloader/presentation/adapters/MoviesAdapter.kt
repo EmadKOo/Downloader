@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.emad.downloader.data.pojo.Movie
 import com.emad.downloader.databinding.MovieItemLayoutBinding
 import com.emad.downloader.presentation.listeners.IMovie
+import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 
 class MoviesAdapter @Inject constructor() : RecyclerView.Adapter<MoviesAdapter.MyViewHolder>() {
@@ -17,6 +18,7 @@ class MoviesAdapter @Inject constructor() : RecyclerView.Adapter<MoviesAdapter.M
         fun bind(movie: Movie) {
             mBinding.title = movie.name
             mBinding.status= movie.status
+            mBinding.isDownloading= movie.isDownloading
             if (movie.type.equals("VIDEO")) mBinding.isBook= false else mBinding.isBook= true
             mBinding.downloadFileImage.setOnClickListener {
                 iMovie.selectedMovie(movie)
@@ -48,8 +50,9 @@ class MoviesAdapter @Inject constructor() : RecyclerView.Adapter<MoviesAdapter.M
     fun setIMovieListener(iMovie: IMovie){
         this.iMovie= iMovie
     }
-    fun setMovieStatus(movie: Movie, status: String){
+    fun setMovieStatus(movie: Movie, status: String, isDownloading: Boolean){
         list[movie.id-1].status= status
+        list[movie.id-1].isDownloading= isDownloading
         notifyItemChanged(movie.id-1)
     }
 }
